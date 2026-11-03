@@ -1,0 +1,4 @@
+[
+  { "name": "USCDI v3.1",                          "mnemonic": "USCDI_V31",         "filePath": "./data/rubrics/USCDI_Aligned_V31.json" },
+  { "name": "EOB - CARIN Blue Button - Inpatient", "mnemonic": "EOB_C4BB_INPATIENT","filePath": "./data/rubrics/EOB_C4BB_INPATIENT.json" }
+]

@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIQI Rubric Viewer</title>
+<style>
+/* ── Reset & Base ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+/* ── Design Tokens ───────────────────────────── */
+:root {
+  --brand:        #0076ce;
+  --brand-dark:   #004a8f;
+  --brand-light:  #deeffe;
+  --brand-xlight: #f0f7ff;
+
+  --bg:           #f0f4f8;
+  --surface:      #ffffff;
+  --surface-2:    #f8fafc;
+  --border:       #d1dce8;
+  --border-light: #e8edf4;
+
+  --text:         #1a2433;
+  --text-muted:   #64748b;
+  --text-subtle:  #94a3b8;
+
+  --scoring-bg:   #dbeafe;  --scoring-text:  #1d4ed8;  --scoring-border: #93c5fd;
+  --info-bg:      #f1f5f9;  --info-text:     #475569;  --info-border:    #cbd5e1;
+  --plaus-bg:     #ede9fe;  --plaus-text:    #6d28d9;  --plaus-border:   #c4b5fd;
+  --detect-bg:    #fef3c7;  --detect-text:   #92400e;  --detect-border:  #fcd34d;
+  --critical-bg:  #fee2e2;  --critical-text: #b91c1c;
+
+  --radius-sm: 4px;
+  --radius:    8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --shadow:    0 4px 12px rgba(0,0,0,.10), 0 2px 4px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.08);
+}
+
+/* ── Effect utility classes ──────────────────── */
+.eff-scoring  { background: var(--scoring-bg);  color: var(--scoring-text);  border-color: var(--scoring-border); }
+.eff-info     { background: var(--info-bg);     color: var(--info-text);     border-color: var(--info-border); }
+.eff-plaus    { background: var(--plaus-bg);    color: var(--plaus-text);    border-color: var(--plaus-border); }
+.eff-detect   { background: var(--detect-bg);   color: var(--detect-text);   border-color: var(--detect-border); }
+
+/* ── Landing Screen ──────────────────────────── */
+.landing-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8edf4 100%);
+}
+.landing-container { width: 100%; max-width: 800px; }
+.landing-header { text-align: center; margin-bottom: 40px; }
+.landing-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px; height: 64px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 800;
+  border-radius: var(--radius-lg);
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.landing-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+.landing-subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-top: 4px;
+}
+
+.landing-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 620px) { .landing-options { grid-template-columns: 1fr; } }
+
+.landing-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  box-shadow: var(--shadow-sm);
+}
+.landing-card h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.landing-card > p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+/* Preloaded rubric buttons */
+.rubric-options { display: flex; flex-direction: column; gap: 8px; }
+.rubric-option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+  text-align: left;
+}
+.rubric-option-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-xlight);
+  transform: translateX(2px);
+}
+.rubric-option-btn:disabled { opacity: .5; cursor: default; }
+.rubric-option-name { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+.rubric-option-mnem { font-size: 0.75rem; color: var(--text-muted); font-family: 'Monaco','Courier New',monospace; }
+
+/* Upload area */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  margin-bottom: 14px;
+  user-select: none;
+}
+.upload-area:hover { border-color: var(--brand); background: var(--brand-xlight); }
+.upload-area.small { padding: 14px 12px; }
+.upload-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+.upload-area.small .upload-icon { font-size: 1.3rem; margin-bottom: 0; display: inline; }
+.upload-area p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
+.upload-selected { color: #166534; }
+.upload-selected .upload-icon { color: #16a34a; }
+
+.advanced-options { margin-bottom: 14px; }
+.advanced-options summary {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 0;
+}
+.adv-note { font-size: 0.8rem; color: var(--text-subtle); margin: 8px 0; }
+
+.btn-primary {
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--brand-dark); }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+
+.status-msg {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.status-msg.loading { background: var(--brand-light); color: var(--brand-dark); }
+.status-msg.error   { background: var(--critical-bg); color: var(--critical-text); }
+
+/* ── Viewer Layout ───────────────────────────── */
+.viewer {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Viewer Header ───────────────────────────── */
+.viewer-header {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+.header-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  gap: 12px;
+}
+.header-left { flex: 1; min-width: 0; }
+.header-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.rubric-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.mnemonic-tag, .version-tag {
+  font-size: 0.75rem;
+  font-family: 'Monaco','Courier New',monospace;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.mnemonic-tag { background: var(--brand-light); color: var(--brand-dark); }
+.version-tag  { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+
+.header-meta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.meta-item { font-size: 0.8rem; color: var(--text-muted); }
+.meta-label { font-weight: 600; color: var(--text-subtle); margin-right: 4px; }
+.meta-warning { font-size: 0.8rem; color: #d97706; font-weight: 500; }
+
+.btn-load-another {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s, color .15s;
+}
+.btn-load-another:hover { border-color: var(--brand); color: var(--brand); }
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 20px 12px;
+}
+.stat-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+}
+.stat-chip.total        { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+.stat-chip.scoring      { background: var(--scoring-bg);  color: var(--scoring-text);  border-color: var(--scoring-border); }
+.stat-chip.informational{ background: var(--info-bg);     color: var(--info-text);     border-color: var(--info-border); }
+.stat-chip.plausibility { background: var(--plaus-bg);    color: var(--plaus-text);    border-color: var(--plaus-border); }
+.stat-chip.detection    { background: var(--detect-bg);   color: var(--detect-text);   border-color: var(--detect-border); }
+.stat-chip.critical     { background: var(--critical-bg); color: var(--critical-text); }
+.stat-chip.coverage     { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+
+/* ── Viewer Body ─────────────────────────────── */
+.viewer-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Tree Panel ──────────────────────────────── */
+.tree-panel {
+  width: 400px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tree-toolbar {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-2);
+}
+.expand-controls {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 500;
+  transition: border-color .12s, color .12s;
+}
+.btn-sm:hover { border-color: var(--brand); color: var(--brand); }
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.filter-label { font-size: 0.72rem; color: var(--text-subtle); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity .12s, filter .12s;
+}
+.filter-pill.inactive { opacity: .4; filter: grayscale(.5); }
+.filter-pill.critical-pill { background: var(--critical-bg); color: var(--critical-text); border-color: #fca5a5; }
+.filter-pill.critical-pill.active { opacity: 1; }
+.filter-pill.critical-pill:not(.active) { opacity: .4; }
+
+/* Tree content */
+.tree-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+.tree-empty { padding: 40px 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+/* Data class group */
+.dc-group { border-bottom: 1px solid var(--border-light); }
+.dc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--surface-2);
+  transition: background .12s;
+}
+.dc-header:hover   { background: var(--brand-xlight); }
+.dc-header.expanded{ background: var(--brand-light); }
+.dc-chevron { font-size: 0.75rem; color: var(--text-muted); width: 12px; flex-shrink: 0; }
+.dc-name { font-weight: 600; font-size: 0.88rem; color: var(--text); flex: 1; min-width: 0; }
+.dc-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+.dc-group.unresolved .dc-header { background: #fffbeb; }
+.dc-group.unresolved .dc-header:hover { background: #fef3c7; }
+.dc-group.unresolved .dc-name { color: #92400e; }
+
+/* Attribute group */
+.dc-body { padding: 4px 0 8px; }
+.attr-group { margin-bottom: 2px; }
+.attr-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px 4px 28px;
+}
+.attr-dot { color: var(--brand); font-size: 0.9rem; }
+.attr-name { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.attr-type-tag {
+  font-size: 0.65rem;
+  font-family: 'Monaco','Courier New',monospace;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.type-atr { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.type-cc  { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+.type-obsval { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.type-rv  { background: #dcfce7; color: #15803d; border-color: #86efac; }
+.type-elm { background: var(--brand-light); color: var(--brand-dark); border-color: #93c5fd; }
+.type-cls { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+
+/* Criterion leaf */
+.criterion-leaf {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px 5px 42px;
+  cursor: pointer;
+  border-radius: 0;
+  transition: background .1s;
+}
+.criterion-leaf:hover    { background: var(--surface-2); }
+.criterion-leaf.selected { background: var(--brand-light); }
+.leaf-dot { color: var(--text-subtle); font-size: 1.1rem; line-height: 1; }
+.entity-tag {
+  font-size: 0.7rem;
+  font-family: 'Monaco','Courier New',monospace;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+/* SAM pill (on criterion leaves) */
+.sam-pill {
+  font-size: 0.68rem;
+  font-family: 'Monaco','Courier New',monospace;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.crit-star { color: var(--critical-text); font-size: 0.8rem; flex-shrink: 0; }
+.cond-dot  { color: var(--text-subtle);   font-size: 0.85rem; flex-shrink: 0; cursor: help; }
+
+/* ── Detail Panel ────────────────────────────── */
+.detail-panel {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.detail-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-subtle);
+}
+.detail-empty-icon { font-size: 2.5rem; opacity: .4; }
+.detail-empty p { font-size: 0.9rem; }
+
+.detail-content { max-width: 560px; }
+
+.detail-breadcrumb {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.breadcrumb-sep { color: var(--text-subtle); }
+
+/* Detail cards */
+.detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light);
+}
+.detail-card-header .detail-sam-mnem {
+  font-family: 'Monaco','Courier New',monospace;
+  font-size: 0.85rem;
+  letter-spacing: -0.3px;
+}
+.detail-critical-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--critical-bg);
+  color: var(--critical-text);
+}
+.detail-card-title {
+  padding: 9px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-2);
+}
+.detail-card-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+/* Detail fields */
+.detail-field { display: flex; align-items: flex-start; gap: 10px; }
+.detail-field-label {
+  flex-shrink: 0;
+  width: 110px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding-top: 1px;
+}
+.detail-field-value { font-size: 0.85rem; color: var(--text); }
+
+.hdqt-badge {
+  font-size: 0.75rem;
+  font-family: 'Monaco','Courier New',monospace;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.code-tag {
+  font-family: 'Monaco','Courier New',monospace;
+  font-size: 0.78rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.effect-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.val-yes { color: var(--critical-text); font-weight: 600; }
+.val-no  { color: var(--text-muted); }
+
+/* Conditional SAM section */
+.conditional-card .detail-card-title { background: #fefce8; }
+.conditional-note { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+
+/* Parameter rows */
+.param-section { margin-top: 8px; border-top: 1px solid var(--border-light); padding-top: 8px; }
+.param-section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-subtle); letter-spacing: 0.3px; margin-bottom: 6px; }
+.param-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.82rem;
+}
+.param-row:last-child { border-bottom: none; }
+.param-name { font-weight: 600; color: var(--text); min-width: 120px; }
+.param-type-tag {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.param-value {
+  font-family: 'Monaco','Courier New',monospace;
+  font-size: 0.78rem;
+  color: var(--brand-dark);
+  background: var(--brand-xlight);
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- LANDING SCREEN                             -->
+  <!-- ══════════════════════════════════════════ -->
+  <div v-if="!rubric" class="landing-screen">
+    <div class="landing-container">
+
+      <div class="landing-header">
+        <div class="landing-logo">PIQI</div>
+        <h1 class="landing-title">Rubric Viewer</h1>
+        <p class="landing-subtitle">Patient Information Quality Initiative</p>
+      </div>
+
+      <div class="landing-options">
+
+        <!-- Preloaded rubrics -->
+        <div class="landing-card">
+          <h2>Preloaded Rubrics</h2>
+          <p>Select a bundled evaluation rubric to view.</p>
+          <div v-if="preloadedRubrics.length === 0" style="font-size:.85rem;color:var(--text-muted)">Loading library…</div>
+          <div class="rubric-options">
+            <button v-for="r in preloadedRubrics" :key="r.mnemonic"
+                    class="rubric-option-btn"
+                    :disabled="loading"
+                    @click="loadPreloadedRubric(r.filePath)">
+              <span class="rubric-option-name">{{ r.name }}</span>
+              <span class="rubric-option-mnem">{{ r.mnemonic }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Upload -->
+        <div class="landing-card">
+          <h2>Upload a Rubric</h2>
+          <p>Load any PIQI Evaluation Rubric JSON file from your computer.</p>
+
+          <div class="upload-area"
+               @click="triggerRubricUpload"
+               @dragover.prevent
+               @drop.prevent="handleDrop">
+            <div v-if="!uploadedRubricName" class="upload-prompt">
+              <span class="upload-icon">📄</span>
+              <p>Click to choose or drag &amp; drop a <strong>.json</strong> rubric file</p>
+            </div>
+            <div v-else class="upload-selected">
+              <span class="upload-icon">✓</span>
+              <p>{{ uploadedRubricName }}</p>
+            </div>
+            <input ref="rubricFileRef" type="file" accept=".json" style="display:none" @change="handleRubricFile">
+          </div>
+
+          <details class="advanced-options">
+            <summary>Advanced: also provide a model file</summary>
+            <p class="adv-note">Only needed if your rubric uses a model that isn't bundled here (i.e., not PAT_CLINICAL_V1). The model is otherwise loaded automatically.</p>
+            <div class="upload-area small" @click="triggerModelUpload">
+              <div v-if="!uploadedModelName" class="upload-prompt small">
+                <span class="upload-icon">📋</span>
+                <span> Choose model .json file (optional)</span>
+              </div>
+              <div v-else class="upload-selected small">
+                <span class="upload-icon">✓</span>
+                <span> {{ uploadedModelName }}</span>
+              </div>
+              <input ref="modelFileRef" type="file" accept=".json" style="display:none" @change="handleModelFile">
+            </div>
+          </details>
+
+          <button v-if="uploadedRubricName"
+                  class="btn-primary"
+                  :disabled="loading"
+                  @click="loadUploadedRubric">
+            View Rubric →
+          </button>
+        </div>
+
+      </div><!-- /.landing-options -->
+
+      <div v-if="loading" class="status-msg loading">Loading rubric…</div>
+      <div v-if="error"   class="status-msg error">{{ error }}</div>
+
+    </div>
+  </div><!-- /.landing-screen -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VIEWER                                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <div v-else class="viewer">
+
+    <!-- Header -->
+    <header class="viewer-header">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="header-title-row">
+            <h1 class="rubric-name">{{ rubric.name }}</h1>
+            <span class="mnemonic-tag">{{ rubric.mnemonic }}</span>
+            <span v-if="rubric.version" class="version-tag">v{{ rubric.version }}</span>
+          </div>
+          <div class="header-meta-row">
+            <span v-if="rubric.authorityName" class="meta-item">
+              <span class="meta-label">Authority</span>{{ rubric.authorityName }}
+            </span>
+            <span v-if="rubric.model" class="meta-item">
+              <span class="meta-label">Model</span>{{ rubric.model.name || rubric.model.mnemonic }}
+            </span>
+            <span v-if="rubric.source && rubric.source.name" class="meta-item">
+              <span class="meta-label">Source</span>{{ rubric.source.name }}
+            </span>
+            <span v-if="!modelLoaded" class="meta-warning">⚠ Model not loaded — entities shown as mnemonics</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="btn-load-another" @click="resetViewer">↩ Load Another</button>
+        </div>
+      </div>
+
+      <div class="stats-bar">
+        <span class="stat-chip total">{{ stats.total }} Criteria</span>
+        <span v-if="stats.scoring > 0"       class="stat-chip scoring">{{ stats.scoring }} Scoring</span>
+        <span v-if="stats.informational > 0" class="stat-chip informational">{{ stats.informational }} Informational</span>
+        <span v-if="stats.plausibility > 0"  class="stat-chip plausibility">{{ stats.plausibility }} Plausibility</span>
+        <span v-if="stats.detection > 0"     class="stat-chip detection">{{ stats.detection }} Detection</span>
+        <span v-if="stats.critical > 0"      class="stat-chip critical">★ {{ stats.critical }} Critical</span>
+        <span class="stat-chip coverage">{{ dcCoverage }} Data {{ dcCoverage === 1 ? 'Class' : 'Classes' }}</span>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="viewer-body">
+
+      <!-- ── Tree Panel ── -->
+      <div class="tree-panel">
+
+        <!-- Toolbar -->
+        <div class="tree-toolbar">
+          <div class="expand-controls">
+            <button class="btn-sm" @click="expandAll">Expand All</button>
+            <button class="btn-sm" @click="collapseAll">Collapse All</button>
+          </div>
+          <div class="filter-controls">
+            <span class="filter-label">Show:</span>
+            <label v-for="eff in allEffects" :key="eff"
+                   class="filter-pill"
+                   :class="[effectClass(eff), { inactive: !filterEffects.includes(eff) }]"
+                   :title="(filterEffects.includes(eff) ? 'Hide' : 'Show') + ' ' + eff + ' criteria'">
+              <input type="checkbox" :checked="filterEffects.includes(eff)" @change="toggleEffect(eff)" hidden>
+              {{ eff }}
+            </label>
+            <label class="filter-pill critical-pill"
+                   :class="{ active: criticalOnly }"
+                   title="Show only critical criteria">
+              <input type="checkbox" v-model="criticalOnly" hidden>
+              ★ Critical Only
+            </label>
+          </div>
+        </div>
+
+        <!-- Tree -->
+        <div class="tree-content">
+          <div v-if="treeNodes.length === 0 && unresolvedCriteria.length === 0" class="tree-empty">
+            No criteria match the current filters.
+          </div>
+
+          <!-- Data Class groups -->
+          <div v-for="dcNode in treeNodes" :key="dcNode.dc.mnemonic" class="dc-group">
+            <div class="dc-header"
+                 :class="{ expanded: expandedDCs[dcNode.dc.mnemonic] }"
+                 @click="toggleDC(dcNode.dc.mnemonic)">
+              <span class="dc-chevron">{{ expandedDCs[dcNode.dc.mnemonic] ? '▾' : '▸' }}</span>
+              <span class="dc-name">{{ dcNode.dc.name }}</span>
+              <span class="dc-count">{{ dcNode.totalCriteria }}</span>
+            </div>
+
+            <div v-if="expandedDCs[dcNode.dc.mnemonic]" class="dc-body">
+              <div v-for="attrNode in dcNode.attrs" :key="attrNode.attr.mnemonic" class="attr-group">
+                <div class="attr-header">
+                  <span class="attr-dot">◈</span>
+                  <span class="attr-name">{{ attrNode.attr.shortName || attrNode.attr.name }}</span>
+                  <span class="attr-type-tag" :class="'type-' + attrNode.attr.type.toLowerCase()">{{ attrNode.attr.type }}</span>
+                </div>
+
+                <div v-for="(crit, idx) in attrNode.criteria" :key="idx"
+                     class="criterion-leaf"
+                     :class="{ selected: isCriterionSelected(crit) }"
+                     @click="selectCriterion(crit, dcNode.dc, attrNode.attr)"
+                     :title="crit.samMnemonic + (crit.description ? ' — ' + crit.description : '')">
+                  <span class="leaf-dot">·</span>
+                  <span class="sam-pill" :class="effectClass(crit.scoringEffect)">{{ crit.samMnemonic }}</span>
+                  <span v-if="crit.criticalityIndicator" class="crit-star" title="Critical criterion">★</span>
+                  <span v-if="crit.conditionalSam" class="cond-dot" :title="'Conditional on: ' + crit.conditionalSam">⚬</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Unresolved criteria (entity not in model) -->
+          <div v-if="unresolvedCriteria.length > 0" class="dc-group unresolved">
+            <div class="dc-header"
+                 :class="{ expanded: expandedDCs['__unresolved__'] }"
+                 @click="toggleDC('__unresolved__')">
+              <span class="dc-chevron">{{ expandedDCs['__unresolved__'] ? '▾' : '▸' }}</span>
+              <span class="dc-name">Unresolved Criteria</span>
+              <span class="dc-count">{{ unresolvedCriteria.length }}</span>
+            </div>
+            <div v-if="expandedDCs['__unresolved__']" class="dc-body">
+              <div v-for="(crit, idx) in unresolvedCriteria" :key="idx"
+                   class="criterion-leaf"
+                   :class="{ selected: isCriterionSelected(crit) }"
+                   @click="selectCriterion(crit, null, { mnemonic: crit.entity, name: crit.entity, shortName: crit.entity, type: '?' })">
+                <span class="leaf-dot">·</span>
+                <span class="entity-tag">{{ crit.entity }}</span>
+                <span class="sam-pill" :class="effectClass(crit.scoringEffect)">{{ crit.samMnemonic }}</span>
+                <span v-if="crit.criticalityIndicator" class="crit-star" title="Critical criterion">★</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.tree-content -->
+      </div><!-- /.tree-panel -->
+
+
+      <!-- ── Detail Panel ── -->
+      <div class="detail-panel">
+
+        <!-- Empty state -->
+        <div v-if="!selectedCriterion" class="detail-empty">
+          <div class="detail-empty-icon">☰</div>
+          <p>Select a criterion from the tree to view its details.</p>
+        </div>
+
+        <!-- Detail content -->
+        <div v-else class="detail-content">
+
+          <!-- Breadcrumb -->
+          <div class="detail-breadcrumb">
+            <span v-if="selectedCriterion.dc">{{ selectedCriterion.dc.name }}</span>
+            <span v-if="selectedCriterion.dc" class="breadcrumb-sep">›</span>
+            <span>{{ selectedCriterion.attr.shortName || selectedCriterion.attr.name }}</span>
+          </div>
+
+          <!-- SAM Card -->
+          <div class="detail-card">
+            <div class="detail-card-header" :class="effectClass(selectedCriterion.criterion.scoringEffect)">
+              <span class="detail-sam-mnem">{{ selectedCriterion.criterion.samMnemonic }}</span>
+              <span v-if="selectedCriterion.criterion.criticalityIndicator" class="detail-critical-badge">★ Critical</span>
+            </div>
+            <div class="detail-card-body">
+              <div v-if="getSAM(selectedCriterion.criterion.samMnemonic)" class="detail-field">
+                <span class="detail-field-label">SAM Name</span>
+                <span class="detail-field-value">{{ getSAM(selectedCriterion.criterion.samMnemonic).name }}</span>
+              </div>
+              <div v-if="getSAM(selectedCriterion.criterion.samMnemonic) && getSAM(selectedCriterion.criterion.samMnemonic).HDQTDimensionMnemonic" class="detail-field">
+                <span class="detail-field-label">HDQT Dimension</span>
+                <span class="hdqt-badge">{{ getSAM(selectedCriterion.criterion.samMnemonic).HDQTDimensionMnemonic }}</span>
+              </div>
+              <div v-if="getSAM(selectedCriterion.criterion.samMnemonic) && getSAM(selectedCriterion.criterion.samMnemonic).inputType" class="detail-field">
+                <span class="detail-field-label">Input Type</span>
+                <code class="code-tag">{{ getSAM(selectedCriterion.criterion.samMnemonic).inputType }}</code>
+              </div>
+              <div v-if="!getSAM(selectedCriterion.criterion.samMnemonic)" class="detail-field">
+                <span class="detail-field-label">SAM Name</span>
+                <span style="font-size:.8rem;color:var(--text-muted)">Not found in SAM library</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scoring Card -->
+          <div class="detail-card">
+            <div class="detail-card-title">Scoring</div>
+            <div class="detail-card-body">
+              <div class="detail-field">
+                <span class="detail-field-label">Effect</span>
+                <span class="effect-badge" :class="effectClass(selectedCriterion.criterion.scoringEffect)">{{ selectedCriterion.criterion.scoringEffect }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-field-label">Weight</span>
+                <span class="detail-field-value">{{ selectedCriterion.criterion.scoringWeight }}</span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-field-label">Critical</span>
+                <span :class="selectedCriterion.criterion.criticalityIndicator ? 'val-yes' : 'val-no'">
+                  {{ selectedCriterion.criterion.criticalityIndicator ? '★ Yes' : 'No' }}
+                </span>
+              </div>
+              <div class="detail-field">
+                <span class="detail-field-label">Sequence</span>
+                <span class="detail-field-value">{{ selectedCriterion.criterion.sequence }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Display Names Card -->
+          <div v-if="selectedCriterion.criterion.samNameOverride || selectedCriterion.criterion.failureNameOverride" class="detail-card">
+            <div class="detail-card-title">Display Names</div>
+            <div class="detail-card-body">
+              <div v-if="selectedCriterion.criterion.samNameOverride" class="detail-field">
+                <span class="detail-field-label">Pass Name</span>
+                <span class="detail-field-value">{{ selectedCriterion.criterion.samNameOverride }}</span>
+              </div>
+              <div v-if="selectedCriterion.criterion.failureNameOverride" class="detail-field">
+                <span class="detail-field-label">Fail Name</span>
+                <span class="detail-field-value">{{ selectedCriterion.criterion.failureNameOverride }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conditional SAM Card -->
+          <div v-if="selectedCriterion.criterion.conditionalSam" class="detail-card conditional-card">
+            <div class="detail-card-title">Conditional Execution</div>
+            <div class="detail-card-body">
+              <p class="conditional-note" style="margin-bottom:8px">This criterion only executes when the following SAM passes:</p>
+              <div class="detail-field">
+                <span class="detail-field-label">Gate SAM</span>
+                <code class="code-tag">{{ selectedCriterion.criterion.conditionalSam }}</code>
+              </div>
+              <div v-if="getSAM(selectedCriterion.criterion.conditionalSam)" class="detail-field">
+                <span class="detail-field-label">Name</span>
+                <span class="detail-field-value">{{ getSAM(selectedCriterion.criterion.conditionalSam).name }}</span>
+              </div>
+              <div v-if="selectedCriterion.criterion.conditionalSamParameters && selectedCriterion.criterion.conditionalSamParameters.length > 0" class="param-section">
+                <div class="param-section-label">Gate Parameters</div>
+                <div v-for="p in selectedCriterion.criterion.conditionalSamParameters" :key="p.samParameterMnemonic" class="param-row">
+                  <span class="param-name">{{ p.parameterName || p.samParameterMnemonic }}</span>
+                  <span v-if="p.parameterValueTypeName" class="param-type-tag">{{ p.parameterValueTypeName }}</span>
+                  <span class="param-value">{{ p.parameterValue }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SAM Parameters Card -->
+          <div v-if="selectedCriterion.criterion.samParameters && selectedCriterion.criterion.samParameters.length > 0" class="detail-card">
+            <div class="detail-card-title">SAM Parameters</div>
+            <div class="detail-card-body" style="padding-top:0;padding-bottom:0">
+              <div v-for="p in selectedCriterion.criterion.samParameters" :key="p.samParameterMnemonic" class="param-row">
+                <span class="param-name">{{ p.parameterName || p.samParameterMnemonic }}</span>
+                <span v-if="p.parameterValueTypeName" class="param-type-tag">{{ p.parameterValueTypeName }}</span>
+                <span class="param-value">{{ p.parameterValue }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.detail-content -->
+      </div><!-- /.detail-panel -->
+
+    </div><!-- /.viewer-body -->
+  </div><!-- /.viewer -->
+
+</div><!-- /#app -->
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+const { createApp, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    // ── State ──────────────────────────────────────────────────────
+    const rubric   = ref(null);
+    const model    = ref(null);
+    const samsMap  = ref({});
+    const preloadedRubrics = ref([]);
+    const loading  = ref(false);
+    const error    = ref(null);
+
+    const selectedCriterion = ref(null); // { criterion, dc, attr }
+    const expandedDCs  = ref({});
+    const filterEffects = ref(['Scoring', 'Informational', 'Plausibility', 'Detection']);
+    const criticalOnly  = ref(false);
+    const allEffects    = ['Scoring', 'Informational', 'Plausibility', 'Detection'];
+
+    const rubricFileRef = ref(null);
+    const modelFileRef  = ref(null);
+    const uploadedRubricName = ref('');
+    const uploadedModelName  = ref('');
+    const pendingRubricData  = ref(null);
+    const pendingModelData   = ref(null);
+
+    // ── Computed ───────────────────────────────────────────────────
+    const modelLoaded = computed(() => !!model.value);
+
+    // Map every attribute mnemonic → { dc, attr } for O(1) tree lookups
+    const attrLookup = computed(() => {
+      if (!model.value) return {};
+      const map = {};
+      for (const dc of (model.value.dataClasses || [])) {
+        for (const attr of (dc.attributes || [])) {
+          map[attr.mnemonic] = {
+            dc:   { name: dc.name,   mnemonic: dc.mnemonic,   sequence: dc.sequence },
+            attr: { name: attr.name, mnemonic: attr.mnemonic,
+                    shortName: attr.shortName,
+                    type: attr.attributeType ? attr.attributeType.mnemonic : 'ATR' }
+          };
+        }
+      }
+      return map;
+    });
+
+    const filteredCriteria = computed(() => {
+      if (!rubric.value) return [];
+      return rubric.value.criteria.filter(c => {
+        if (!filterEffects.value.includes(c.scoringEffect)) return false;
+        if (criticalOnly.value && !c.criticalityIndicator) return false;
+        return true;
+      });
+    });
+
+    // Build tree: DC → Attribute → criteria[]
+    const treeNodes = computed(() => {
+      const dcMap = new Map();
+      for (const crit of filteredCriteria.value) {
+        const entry = attrLookup.value[crit.entity];
+        if (!entry) continue;
+        const { dc, attr } = entry;
+        if (!dcMap.has(dc.mnemonic)) dcMap.set(dc.mnemonic, { dc, attrsMap: new Map() });
+        const dcNode = dcMap.get(dc.mnemonic);
+        if (!dcNode.attrsMap.has(attr.mnemonic)) dcNode.attrsMap.set(attr.mnemonic, { attr, criteria: [] });
+        dcNode.attrsMap.get(attr.mnemonic).criteria.push(crit);
+      }
+      const nodes = [...dcMap.values()].sort((a, b) => (a.dc.sequence || 0) - (b.dc.sequence || 0));
+      return nodes.map(n => {
+        const attrs = [...n.attrsMap.values()];
+        return { dc: n.dc, attrs, totalCriteria: attrs.reduce((s, a) => s + a.criteria.length, 0) };
+      });
+    });
+
+    const unresolvedCriteria = computed(() =>
+      filteredCriteria.value.filter(c => !attrLookup.value[c.entity])
+    );
+
+    const stats = computed(() => {
+      if (!rubric.value) return {};
+      const all = rubric.value.criteria;
+      return {
+        total:         all.length,
+        scoring:       all.filter(c => c.scoringEffect === 'Scoring').length,
+        informational: all.filter(c => c.scoringEffect === 'Informational').length,
+        plausibility:  all.filter(c => c.scoringEffect === 'Plausibility').length,
+        detection:     all.filter(c => c.scoringEffect === 'Detection').length,
+        critical:      all.filter(c => c.criticalityIndicator).length
+      };
+    });
+
+    const dcCoverage = computed(() =>
+      treeNodes.value.length + (unresolvedCriteria.value.length > 0 ? 1 : 0)
+    );
+
+    // ── Data loading ───────────────────────────────────────────────
+    async function loadSAMs() {
+      try {
+        const res = await fetch('./data/sams.json');
+        const data = await res.json();
+        const map = {};
+        for (const sam of (data.SAMLibrary || [])) map[sam.mnemonic] = sam;
+        samsMap.value = map;
+      } catch (e) { console.warn('SAMs not loaded:', e); }
+    }
+
+    async function loadPreloadedRubrics() {
+      try {
+        const res = await fetch('./data/rubric-library.json');
+        preloadedRubrics.value = await res.json();
+      } catch (e) { console.warn('Rubric library not loaded:', e); }
+    }
+
+    async function loadModelForRubric(rubricData, customModel) {
+      if (customModel) { model.value = customModel; return; }
+      const mnemonic = rubricData.model && rubricData.model.mnemonic;
+      if (!mnemonic) return;
+      try {
+        const res = await fetch('./data/models/' + mnemonic + '.json');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        model.value = await res.json();
+      } catch (e) { console.warn('Model not loaded for', mnemonic, ':', e); }
+    }
+
+    async function applyRubric(rubricData, customModel) {
+      rubric.value     = rubricData;
+      model.value      = null;
+      selectedCriterion.value = null;
+      expandedDCs.value = {};
+      error.value       = null;
+
+      await loadModelForRubric(rubricData, customModel || null);
+
+      // Auto-expand the first data class
+      if (treeNodes.value.length > 0) {
+        expandedDCs.value = { [treeNodes.value[0].dc.mnemonic]: true };
+      }
+    }
+
+    async function loadPreloadedRubric(filePath) {
+      loading.value = true;
+      error.value   = null;
+      try {
+        const res = await fetch(filePath);
+        if (!res.ok) throw new Error('Could not load: ' + filePath);
+        await applyRubric(await res.json());
+      } catch (e) { error.value = e.message; }
+      finally { loading.value = false; }
+    }
+
+    function readJsonFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = e => { try { resolve(JSON.parse(e.target.result)); } catch (err) { reject(new Error('Invalid JSON: ' + err.message)); } };
+        reader.onerror = () => reject(new Error('File read error'));
+        reader.readAsText(file);
+      });
+    }
+
+    function triggerRubricUpload() { rubricFileRef.value && rubricFileRef.value.click(); }
+    function triggerModelUpload()  { modelFileRef.value  && modelFileRef.value.click();  }
+
+    async function handleRubricFile(event) {
+      const file = event.target.files[0]; if (!file) return;
+      try { pendingRubricData.value = await readJsonFile(file); uploadedRubricName.value = file.name; }
+      catch (e) { error.value = e.message; }
+    }
+
+    async function handleModelFile(event) {
+      const file = event.target.files[0]; if (!file) return;
+      try { pendingModelData.value = await readJsonFile(file); uploadedModelName.value = file.name; }
+      catch (e) { error.value = e.message; }
+    }
+
+    async function handleDrop(event) {
+      const file = event.dataTransfer.files[0];
+      if (!file) return;
+      if (!file.name.endsWith('.json')) { error.value = 'Please drop a .json rubric file'; return; }
+      try { pendingRubricData.value = await readJsonFile(file); uploadedRubricName.value = file.name; }
+      catch (e) { error.value = e.message; }
+    }
+
+    async function loadUploadedRubric() {
+      if (!pendingRubricData.value) return;
+      loading.value = true; error.value = null;
+      try { await applyRubric(pendingRubricData.value, pendingModelData.value); }
+      catch (e) { error.value = e.message; }
+      finally { loading.value = false; }
+    }
+
+    function resetViewer() {
+      rubric.value = null; model.value = null;
+      selectedCriterion.value = null; expandedDCs.value = {}; error.value = null;
+      filterEffects.value = [...allEffects]; criticalOnly.value = false;
+      uploadedRubricName.value = ''; uploadedModelName.value = '';
+      pendingRubricData.value = null; pendingModelData.value = null;
+    }
+
+    // ── Tree interaction ───────────────────────────────────────────
+    function toggleDC(mnemonic) {
+      expandedDCs.value = { ...expandedDCs.value, [mnemonic]: !expandedDCs.value[mnemonic] };
+    }
+
+    function expandAll() {
+      const all = {};
+      for (const n of treeNodes.value) all[n.dc.mnemonic] = true;
+      if (unresolvedCriteria.value.length > 0) all['__unresolved__'] = true;
+      expandedDCs.value = all;
+    }
+
+    function collapseAll() { expandedDCs.value = {}; }
+
+    function selectCriterion(criterion, dc, attr) {
+      selectedCriterion.value = { criterion, dc, attr };
+    }
+
+    function isCriterionSelected(crit) {
+      return !!selectedCriterion.value && selectedCriterion.value.criterion === crit;
+    }
+
+    function toggleEffect(eff) {
+      filterEffects.value = filterEffects.value.includes(eff)
+        ? filterEffects.value.filter(e => e !== eff)
+        : [...filterEffects.value, eff];
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────
+    function getSAM(mnemonic) { return samsMap.value[mnemonic] || null; }
+
+    function effectClass(effect) {
+      return { Scoring:'eff-scoring', Informational:'eff-info', Plausibility:'eff-plaus', Detection:'eff-detect' }[effect] || 'eff-info';
+    }
+
+    // ── Init ───────────────────────────────────────────────────────
+    loadSAMs();
+    loadPreloadedRubrics();
+
+    return {
+      rubric, model, preloadedRubrics, loading, error,
+      selectedCriterion, expandedDCs, filterEffects, criticalOnly, allEffects,
+      rubricFileRef, modelFileRef, uploadedRubricName, uploadedModelName,
+      treeNodes, unresolvedCriteria, stats, dcCoverage, modelLoaded,
+      loadPreloadedRubric, triggerRubricUpload, triggerModelUpload,
+      handleRubricFile, handleModelFile, handleDrop, loadUploadedRubric,
+      resetViewer, toggleDC, expandAll, collapseAll,
+      selectCriterion, isCriterionSelected, toggleEffect, getSAM, effectClass
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
