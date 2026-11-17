@@ -1,0 +1,4 @@
+[
+  { "name": "Patient Clinical Model 1.0", "mnemonic": "PAT_CLINICAL_V1", "filePath": "./data/models/PAT_CLINICAL_V1.json" },
+  { "name": "Patient EOB Model 1.0",      "mnemonic": "PAT_EOB_V1",      "filePath": "./data/models/PAT_EOB_V1.json" }
+]
