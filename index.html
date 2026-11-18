@@ -402,11 +402,11 @@ body {
 .attr-name { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .attr-type-tag {
   font-size: 0.65rem;
-  font-family: 'Monaco','Courier New',monospace;
   padding: 1px 5px;
   border-radius: 3px;
   font-weight: 600;
   border: 1px solid;
+  white-space: nowrap;
 }
 .type-atr { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 .type-cc  { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
@@ -544,8 +544,7 @@ body {
 
 .hdqt-badge {
   font-size: 0.75rem;
-  font-family: 'Monaco','Courier New',monospace;
-  font-weight: 600;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -1025,18 +1024,18 @@ body {
                 <div class="attr-header">
                   <span class="attr-dot">◈</span>
                   <span class="attr-name">{{ attrNode.attr.shortName || attrNode.attr.name }}</span>
-                  <span class="attr-type-tag" :class="'type-' + attrNode.attr.type.toLowerCase()">{{ attrNode.attr.type }}</span>
+                  <span class="attr-type-tag" :class="'type-' + attrNode.attr.type.toLowerCase()">{{ attrNode.attr.typeName }} ({{ attrNode.attr.type }})</span>
                 </div>
 
                 <div v-for="(crit, idx) in attrNode.criteria" :key="idx"
                      class="criterion-leaf"
                      :class="{ selected: isCriterionSelected(crit) }"
                      @click="selectCriterion(crit, dcNode.dc, attrNode.attr)"
-                     :title="crit.samMnemonic + (crit.description ? ' — ' + crit.description : '')">
+                     :title="samPillLabel(crit.samMnemonic) + (crit.description ? ' — ' + crit.description : '')">
                   <span class="leaf-dot">·</span>
-                  <span class="sam-pill" :class="effectClass(crit.scoringEffect)">{{ crit.samMnemonic }}</span>
+                  <span class="sam-pill" :class="effectClass(crit.scoringEffect)" :title="crit.samMnemonic">{{ samPillLabel(crit.samMnemonic) }}</span>
                   <span v-if="crit.criticalityIndicator" class="crit-star" title="Critical criterion">★</span>
-                  <span v-if="crit.conditionalSam" class="cond-dot" :title="'Conditional on: ' + crit.conditionalSam">⚬</span>
+                  <span v-if="crit.conditionalSam" class="cond-dot" :title="'Conditional on: ' + samPillLabel(crit.conditionalSam)">⚬</span>
                 </div>
               </div>
             </div>
@@ -1100,11 +1099,11 @@ body {
               </div>
               <div v-if="getSAM(selectedCriterion.criterion.samMnemonic) && getSAM(selectedCriterion.criterion.samMnemonic).HDQTDimensionMnemonic" class="detail-field">
                 <span class="detail-field-label">HDQT Dimension</span>
-                <span class="hdqt-badge">{{ getSAM(selectedCriterion.criterion.samMnemonic).HDQTDimensionMnemonic }}</span>
+                <span class="hdqt-badge">{{ hdqtDimLabel(getSAM(selectedCriterion.criterion.samMnemonic).HDQTDimensionMnemonic) }}</span>
               </div>
               <div v-if="getSAM(selectedCriterion.criterion.samMnemonic) && getSAM(selectedCriterion.criterion.samMnemonic).inputType" class="detail-field">
                 <span class="detail-field-label">Input Type</span>
-                <code class="code-tag">{{ getSAM(selectedCriterion.criterion.samMnemonic).inputType }}</code>
+                <span class="hdqt-badge">{{ inputTypeLabel(getSAM(selectedCriterion.criterion.samMnemonic).inputType) }}</span>
               </div>
               <div v-if="!getSAM(selectedCriterion.criterion.samMnemonic)" class="detail-field">
                 <span class="detail-field-label">SAM Name</span>
@@ -1600,7 +1599,8 @@ createApp({
             dc:   { name: dc.name,   mnemonic: dc.mnemonic,   sequence: dc.sequence },
             attr: { name: attr.name, mnemonic: attr.mnemonic,
                     shortName: attr.shortName,
-                    type: attr.attributeType ? attr.attributeType.mnemonic : 'ATR' }
+                    type:     attr.attributeType ? attr.attributeType.mnemonic : 'ATR',
+                    typeName: attr.attributeType ? attr.attributeType.name     : 'Simple Attribute' }
           };
         }
       }
@@ -2157,6 +2157,41 @@ createApp({
       return entry ? (entry.attr.shortName || entry.attr.name) : '';
     }
 
+    // ── Display label helpers ──────────────────────────────────────
+    const HDQT_DIM_NAMES = {
+      ACC_INVFMT:  'Accuracy – Invalid Format',
+      ACC_INVGRP:  'Accuracy – Invalid Grouping',
+      ACC_INVVAL:  'Accuracy – Invalid Value',
+      AV_INCOMP:   'Availability – Incomplete',
+      AV_MISS:     'Availability – Missing',
+      AV_UNPOP:    'Availability – Unpopulated',
+      CONF_INCOMP: 'Conformance – Incomplete',
+      CONF_INVMBR: 'Conformance – Invalid Member',
+      CONF_OBSOL:  'Conformance – Obsolete',
+      PLAUS_CLIN:  'Plausibility – Clinical',
+      PLAUS_SITU:  'Plausibility – Situational',
+      PLAUS_TEMP:  'Plausibility – Temporal'
+    };
+
+    function hdqtDimLabel(mnemonic) {
+      const name = HDQT_DIM_NAMES[mnemonic];
+      return name ? `${name} (${mnemonic})` : mnemonic;
+    }
+
+    function inputTypeLabel(mnemonic) {
+      const sam = samsMap.value;
+      // derive from the same type names the model uses via any loaded attr
+      const NAMES = { ATR:'Simple Attribute', CC:'Codeable Concept', CLS:'Data Class',
+                      ELM:'Element', OBSVAL:'Observation Value', RV:'Range Value', ROOT:'Root' };
+      const name = NAMES[mnemonic];
+      return name ? `${name} (${mnemonic})` : mnemonic;
+    }
+
+    function samPillLabel(mnemonic) {
+      const s = samsMap.value[mnemonic];
+      return s ? `${s.name} (${mnemonic})` : mnemonic;
+    }
+
     // ── Init ───────────────────────────────────────────────────────
     loadSAMs();
     loadPreloadedRubrics();
@@ -2188,7 +2223,8 @@ createApp({
       toggleEditSection, toggleEditorDC, addCriterion, openCriterion, saveCriterion,
       cancelCriterion, deleteCriterion, moveCriterion,
       onSAMSelected, onSAMBlur, onEntitySelected, onEntityBlur,
-      onCondSAMSelected, onCondSAMBlur, downloadRubric, editorEntityName
+      onCondSAMSelected, onCondSAMBlur, downloadRubric, editorEntityName,
+      hdqtDimLabel, inputTypeLabel, samPillLabel
     };
   }
 }).mount('#app');
