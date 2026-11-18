@@ -1999,14 +1999,15 @@ createApp({
       criterionDraft.value = JSON.parse(JSON.stringify(crit));
       editSection.value = 'criteria';
       editingCriterionIndex.value = idx;
-      samQuery.value = crit.samMnemonic || '';
-      entityQuery.value = crit.entity || '';
-      condSamQuery.value = crit.conditionalSam || '';
+      const entityEntry = editorAttrLookup.value[crit.entity];
+      const samEntry    = crit.samMnemonic ? samsMap.value[crit.samMnemonic] : null;
+      entityQuery.value   = entityEntry ? `${entityEntry.dc.shortName || entityEntry.dc.name} / ${entityEntry.attr.shortName || entityEntry.attr.name}` : (crit.entity || '');
+      samQuery.value      = samEntry ? samEntry.name : (crit.samMnemonic || '');
+      condSamQuery.value  = crit.conditionalSam || '';
       samDropdownOpen.value = false;
       entityDropdownOpen.value = false;
       condSamDropdownOpen.value = false;
-      const entry = editorAttrLookup.value[crit.entity];
-      selectedDCMnemonic.value = entry ? entry.dc.mnemonic : null;
+      selectedDCMnemonic.value = entityEntry ? entityEntry.dc.mnemonic : null;
     }
 
     function saveCriterion() {
@@ -2066,7 +2067,7 @@ createApp({
     // ── SAM / entity dropdown handlers ────────────────────────────
     function onSAMSelected(mnemonic) {
       criterionDraft.value.samMnemonic = mnemonic;
-      samQuery.value = mnemonic;
+      samQuery.value = (samsMap.value[mnemonic] && samsMap.value[mnemonic].name) || mnemonic;
       samDropdownOpen.value = false;
       const sam = samsMap.value[mnemonic];
       criterionDraft.value.samParameters = (sam && sam.parameters)
@@ -2082,7 +2083,7 @@ createApp({
     function onSAMBlur() {
       setTimeout(() => {
         samDropdownOpen.value = false;
-        if (criterionDraft.value && samQuery.value) {
+        if (criterionDraft.value && !criterionDraft.value.samMnemonic && samQuery.value) {
           criterionDraft.value.samMnemonic = samQuery.value.trim().toUpperCase();
         }
       }, 150);
@@ -2090,14 +2091,14 @@ createApp({
 
     function onEntitySelected(entry) {
       criterionDraft.value.entity = entry.mnemonic;
-      entityQuery.value = entry.mnemonic;
+      entityQuery.value = entry.fullLabel;
       entityDropdownOpen.value = false;
     }
 
     function onEntityBlur() {
       setTimeout(() => {
         entityDropdownOpen.value = false;
-        if (criterionDraft.value && entityQuery.value) {
+        if (criterionDraft.value && !criterionDraft.value.entity && entityQuery.value) {
           criterionDraft.value.entity = entityQuery.value.trim().toUpperCase();
         }
       }, 150);
