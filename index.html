@@ -1250,11 +1250,11 @@ body {
                    class="criterion-row"
                    :class="{ editing: editingCriterionIndex === item.idx }">
                 <span class="crit-seq">#{{ item.crit.sequence }}</span>
-                <span class="sam-pill" :class="effectClass(item.crit.scoringEffect)" style="font-size:.62rem;padding:1px 6px;flex-shrink:0;max-width:120px">{{ item.crit.samMnemonic || '—' }}</span>
+                <span class="sam-pill" :class="effectClass(item.crit.scoringEffect)" style="font-size:.62rem;padding:1px 6px;flex-shrink:0;max-width:120px" :title="item.crit.samMnemonic">{{ samPillLabel(item.crit.samMnemonic) || '—' }}</span>
                 <span v-if="item.crit.criticalityIndicator" class="crit-star" style="font-size:.75rem">★</span>
                 <div class="crit-info">
-                  <div class="crit-entity-mnem">{{ item.crit.entity || '—' }}</div>
-                  <div v-if="editorEntityName(item.crit.entity)" class="crit-entity-label">{{ editorEntityName(item.crit.entity) }}</div>
+                  <div class="crit-entity-label">{{ editorEntityName(item.crit.entity) || item.crit.entity || '—' }}</div>
+                  <div v-if="editorEntityName(item.crit.entity)" class="crit-entity-mnem">{{ item.crit.entity }}</div>
                 </div>
                 <div class="crit-actions">
                   <button class="btn-icon" title="Move up"   @click.stop="moveCriterion(item.idx, -1)" :disabled="item.idx === 0">↑</button>
